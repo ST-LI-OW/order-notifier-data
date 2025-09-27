@@ -1,0 +1,21 @@
+name: Update orders.json
+on:
+  repository_dispatch:
+    types: [update_orders]
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write file from payload
+        run: |
+          echo "${{ github.event.client_payload.base64 }}" | base64 -d > orders.json
+      - name: Commit
+        run: |
+          git config user.name "flow-bot"
+          git config user.email "flow-bot@example.com"
+          git add orders.json
+          git commit -m "Update orders.json"
+          git push
