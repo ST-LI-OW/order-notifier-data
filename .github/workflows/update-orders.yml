@@ -1,4 +1,7 @@
 name: Update orders.json
+concurrency:
+  group: orders-json
+  cancel-in-progress: false
 on:
   repository_dispatch:
     types: [update_orders]
@@ -9,13 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+        fetch-depth: 0   # ensures full history so rebase works
       - name: Write file from payload
         run: |
           echo "${{ github.event.client_payload.base64 }}" | base64 -d > orders.json
       - name: Commit
         run: |
-          git config user.name "flow-bot"
-          git config user.email "flow-bot@example.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
           git add orders.json
-          git commit -m "Update orders.json"
+          git commit -m "Update orders.json" || exit 0
           git push
+
