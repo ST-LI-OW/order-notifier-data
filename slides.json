@@ -1,8 +1,8 @@
 {
   "slides": [
-    { "type": "image", "src": "https://order-notifier-data.pages.dev/slides/EASY.png" },
-    { "type": "image", "src": "https://order-notifier-data.pages.dev/slides/NICE.png" },
-    { "type": "image", "src": "https://order-notifier-data.pages.dev/slides/TNT.png" }
+    { "type": "image", "src": "/slides/EASY.png" },
+    { "type": "image", "src": "/slides/NICE.png" },
+    { "type": "image", "src": "/slides/TNT.png" }
   ],
   "slideDurationMs": 50000
 }
