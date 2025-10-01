@@ -466,9 +466,9 @@
                 console.warn('[slides] load failed:', e);
                 // Fallback: point to your Pages-hosted images so local file:// still works
                 CONFIG.slides = CONFIG.slides.length ? CONFIG.slides : [
-                    { type: 'image', src: 'https://order-notifier-data.pages.dev/slides/EASY.png' },
-                    { type: 'image', src: 'https://order-notifier-data.pages.dev/slides/NICE.png' },
-                    { type: 'image', src: 'https://order-notifier-data.pages.dev/slides/TNT.png' },
+                    { type: 'image', src: '/slides/EASY.png' },
+                    { type: 'image', src: '/slides/NICE.png' },
+                    { type: 'image', src: '/slides/TNT.png' },
                 ];
             }
         }
@@ -504,4 +504,5 @@
     </script>
 </body>
 </html>
+
 
