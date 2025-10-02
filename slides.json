@@ -2,7 +2,23 @@
   "slides": [
     { "type": "image", "src": "/slides/EASY.png" },
     { "type": "image", "src": "/slides/NICE.png" },
-    { "type": "image", "src": "/slides/TNT.png" }
+    { "type": "image", "src": "/slides/TNT.png" },
+    { "type": "image", "src": "/slides/ref1.png" },
+    { "type": "image", "src": "/slides/ref2.png" },
+    { "type": "image", "src": "/slides/ref3.png" },
+    { "type": "image", "src": "/slides/ref4.png" },
+    { "type": "image", "src": "/slides/ref5.png" },
+    { "type": "image", "src": "/slides/CostOfUse.png" },
+    { "type": "image", "src": "/slides/EmployeeVision.png" },
+    { "type": "image", "src": "/slides/GearWheel.png" },
+    { "type": "image", "src": "/slides/HowMyInfo.png" },
+    { "type": "image", "src": "/slides/PositiveInterventionTV.png" },
+    { "type": "image", "src": "/slides/PhysicalQuestions.png" },
+    { "type": "image", "src": "/slides/ResultsQuestions.png" },
+    { "type": "image", "src": "/slides/EmotionalQuestions.png" },
+    { "type": "image", "src": "/slides/MadeInChina.png" },
+    { "type": "image", "src": "/slides/Tariffs.png" },
+    { "type": "image", "src": "/slides/StiltzBalls.png" }
   ],
-  "slideDurationMs": 50000
+  "slideDurationMs": 25000
 }
