@@ -277,11 +277,11 @@
             websocket: { enabled: false, url: "" },
             poll: {
                 enabled: true,
-                url: "./orders.json",
+                url: "https://order-notifier-data.pages.dev/orders.json",
                 intervalMs: 7000
             },
             orderIdField: "customerId",
-            remote: { slidesUrl: "./slides.json" }
+            remote: { slidesUrl: "/slides.json" }
         };
 
         /* =============================
@@ -504,5 +504,6 @@
     </script>
 </body>
 </html>
+
 
 
