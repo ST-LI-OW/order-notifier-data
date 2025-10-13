@@ -1,21 +1,69 @@
 name: Update orders.json
+
 on:
   repository_dispatch:
     types: [update_orders]
+
 permissions:
   contents: write
+
+# Prevent overlapping writers; queue newer runs instead of cancelling them.
+concurrency:
+  group: orders-json-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main with full history
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Write file from payload
+        shell: bash
         run: |
-          echo "${{ github.event.client_payload.base64 }}" | base64 -d > orders.json
-      - name: Commit
+          set -euo pipefail
+          # Decode the base64 payload to orders.json
+          printf %s "${{ github.event.client_payload.base64 }}" | base64 -d > orders.json
+
+      - name: Commit & push (rebase + retry)
+        shell: bash
         run: |
-          git config user.name "flow-bot"
-          git config user.email "flow-bot@example.com"
+          set -euo pipefail
+          git config user.name  "flow-bot"
+          git config user.email "flow-bot@users.noreply.github.com"
+
+          # Exit early if no changes
+          if git diff --quiet -- orders.json; then
+            echo "No changes to orders.json; exiting."
+            exit 0
+          fi
+
           git add orders.json
           git commit -m "Update orders.json"
-          git push
+
+          # Rebase onto latest main and retry push to avoid races
+          for attempt in {1..5}; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "Rebase failed; retrying in $((attempt * 3))s..."
+              sleep $((attempt * 3))
+              continue
+            fi
+
+            if git push origin HEAD:main; then
+              echo "Pushed on attempt $attempt"
+              exit 0
+            fi
+
+            echo "Push failed (likely race). Retrying in $((attempt * 3))s..."
+            sleep $((attempt * 3))
+          done
+
+          echo "Failed to push after retries."
+          exit 1
