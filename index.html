@@ -265,245 +265,283 @@
     </audio>
 
     <script>
-        /* =============================
-           CONFIG
-           ============================= */
-        const CONFIG = {
-            slides: [],                                // loaded from slides.json
-            slideDurationMs: 50000,
-            fadeMs: 600,
-            orderDisplayMs: 25000,
-            showDebug: false,
-            websocket: { enabled: false, url: "" },
-            poll: {
-                enabled: true,
-                url: "./orders.json",
-                intervalMs: 7000
-            },
-            orderIdField: "customerId",
-            remote: { slidesUrl: "./slides.json" }
+    /* =============================
+       CONFIG
+       ============================= */
+    const CONFIG = {
+        slides: [],                                // loaded from slides.json
+        slideDurationMs: 50000,
+        fadeMs: 600,
+        orderDisplayMs: 25000,
+        showDebug: false,
+        websocket: { enabled: false, url: "" },
+        poll: {
+            enabled: true,
+            url: "./orders.json",
+            intervalMs: 7000
+        },
+        orderIdField: "customerId",
+        remote: { slidesUrl: "./slides.json" }
+    };
+
+    /* =============================
+       Slideshow Logic
+       ============================= */
+    const slideImage = document.getElementById('slideImage');
+    const slideFrame = document.getElementById('slideFrame');
+    let slideIdx = 0, slideTimer = null, paused = false;
+
+    function preloadImages(list) { list.filter(s => s.type === 'image').forEach(s => { const i = new Image(); i.src = s.src; }); }
+    function setActiveView(kind) { slideImage.hidden = (kind !== 'image'); slideFrame.hidden = (kind === 'image'); }
+    function showSlide(i) {
+        if (!CONFIG.slides || !CONFIG.slides.length) return;
+        const s = CONFIG.slides[i % CONFIG.slides.length];
+        if (s.type === 'image') {
+            const src = s.src; slideImage.classList.add('fade-out');
+            setTimeout(() => {
+                slideImage.onload = () => slideImage.classList.remove('fade-out');
+                slideImage.onerror = () => { console.warn('[slideshow] image failed', src); slideImage.classList.remove('fade-out'); };
+                setActiveView('image'); slideImage.src = src;
+                setTimeout(() => slideImage.classList.remove('fade-out'), CONFIG.fadeMs + 1000);
+            }, CONFIG.fadeMs);
+        } else if (s.type === 'url') {
+            const src = s.src + (s.src.includes('?') ? '&' : '?') + '_t=' + Date.now();
+            setActiveView('url'); slideFrame.src = src;
+        }
+    }
+    function startSlideshow() {
+        if (!CONFIG.slides || !CONFIG.slides.length) return;
+        showSlide(slideIdx); clearInterval(slideTimer);
+        slideTimer = setInterval(() => { if (!paused) { slideIdx = (slideIdx + 1) % CONFIG.slides.length; showSlide(slideIdx); } }, CONFIG.slideDurationMs);
+    }
+    function pauseSlideshow() { paused = true; } function resumeSlideshow() { paused = false; }
+
+    /* =============================
+       Order Overlay Logic
+       ============================= */
+    const overlay = document.getElementById('orderOverlay');
+    const closeBtn = document.getElementById('closeOrder');
+    const ding = document.getElementById('ding');
+    const fields = {
+        custId: document.getElementById('customerId'),
+        partner: document.getElementById('partnerName'),
+        time: document.getElementById('orderTime'),
+        isr: document.getElementById('isrName'),
+        csr: document.getElementById('csrName'),
+        dsm: document.getElementById('dsmName'),
+    };
+    let audioReady = false;
+    let hideTimer = null;
+
+    // --- NEW stable dedupe state ---
+    let lastOrderSig = null;       // last signature seen in this tab
+    const recent = new Set();      // in-memory TTL dedupe
+
+    function dget(o, p) { return String(p).split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o); }
+    function pickDeep(o, ps) { for (const p of ps) { const v = dget(o, p); if (v != null && v !== '') return v; } }
+
+    function normalizeOrder(o) {
+        if (!o || typeof o !== 'object') return {};
+        let id = pickDeep(o, ['customerId', 'customerID', 'fields.customerId']);
+        let partner = pickDeep(o, ['partner', 'fields.partner']);
+        let name = pickDeep(o, ['customerName', 'fields.customerName']);
+        const text = [o.subject, o.body, dget(o, 'fields.text')].filter(Boolean).join('  ');
+
+        const idNameRaw = pickDeep(o, ['idName', 'fields.idName']);
+        if (idNameRaw) {
+            const mm = String(idNameRaw).match(/\b(C?\d{6,})\s+(.+)/);
+            if (mm) { if (!id) id = mm[1]; if (!name) name = mm[2].trim(); }
+        }
+
+        if (text && !id) { const m = text.match(/\bC?\d{6,}\b/); if (m) id = m[0]; }
+        if (text && !partner) { const m = text.match(/from\s+(.+?)(?:[.!]\s*|$)/i); if (m) partner = m[1].trim(); }
+        if (text && id && !name) { const re = new RegExp(id + '\\s+(.+?)\\s+(?:from|by)\\b', 'i'); const m = re.exec(text); if (m) name = m[1].trim(); }
+
+        const ts = o.timestamp || o.receivedAt || new Date().toISOString();
+
+        const clean = v => (v == null ? null : String(v).replace(/^\s*-+\s*/, '').trim() || null);
+        const isr = clean(dget(o, 'fields.isr') ?? o.isr);
+        const csr = clean(dget(o, 'fields.csr') ?? o.csr);
+        const dsm = clean(dget(o, 'fields.dsm') ?? o.dsm);
+
+        const idName = (id && name) ? `${id} ${name}` : (idNameRaw || null);
+        return { customerId: id, customerName: name, idName, partner, timestamp: ts, isr, csr, dsm, subject: (o.subject || '').trim() };
+    }
+
+    function renderOrder(o) {
+        const n = normalizeOrder(o);
+        fields.custId.textContent = n.idName || (n.customerName ? `${n.customerId} ${n.customerName}` : n.customerId);
+        fields.partner.textContent = n.partner || '—';
+        fields.isr.textContent = n.isr || '—';
+        fields.csr.textContent = n.csr || '—';
+        fields.dsm.textContent = n.dsm || '—';
+        const when = n.timestamp ? new Date(n.timestamp) : new Date();
+        fields.time.textContent = `Received ${when.toLocaleString()}`;
+    }
+
+    function simpleConfetti() {
+        const root = document.getElementById('confetti'); root.innerHTML = '';
+        const colors = ['#8ea50b', '#60a5fa', '#f472b6', '#facc15', '#f97316', '#22d3ee'];
+        for (let i = 0; i < 90; i++) {
+            const b = document.createElement('i');
+            b.style.left = Math.random() * 100 + 'vw';
+            b.style.animationDelay = (Math.random() * 0.6) + 's';
+            b.style.animationDuration = (1.4 + Math.random() * 1.2) + 's';
+            b.style.background = colors[Math.floor(Math.random() * colors.length)];
+            root.appendChild(b);
+        }
+    }
+
+    function showOrder(o) {
+        pauseSlideshow();
+        renderOrder(o);
+        overlay.hidden = false;
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(hideOrder, CONFIG.orderDisplayMs);
+        simpleConfetti();
+        try { if (audioReady) { ding.currentTime = 0; ding.play(); } } catch { }
+    }
+    function hideOrder() { overlay.hidden = true; resumeSlideshow(); }
+    closeBtn.addEventListener('click', hideOrder);
+
+    function isValidOrder(o) { const n = normalizeOrder(o); return !!(n.customerId && n.partner); }
+
+    // ---- NEW: stable signature + triple dedupe helpers ----
+    const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
+
+    function signatureOf(n) {
+        // deterministic signature: <ORDERID>|<ISO to seconds>
+        const id = norm(n.customerId || "");
+        const iso = new Date(n.timestamp || Date.now()).toISOString().slice(0,19);
+        return `${id}|${iso}`;
+    }
+    function readStoredSig() {
+        try { return localStorage.getItem("lastOrderSig") || ""; } catch { return ""; }
+    }
+    function writeStoredSig(sig) {
+        try { localStorage.setItem("lastOrderSig", sig); } catch {}
+    }
+    function firedRecently(sig) {
+        try {
+            const t = Number(localStorage.getItem("firedAt::" + sig) || 0);
+            return Date.now() - t < 10 * 60 * 1000; // 10 minutes
+        } catch { return false; }
+    }
+    function markFired(sig) {
+        recent.add(sig);
+        setTimeout(() => recent.delete(sig), 60 * 60 * 1000); // 1 hour in-memory TTL
+        writeStoredSig(sig);
+        try { localStorage.setItem("firedAt::" + sig, String(Date.now())); } catch {}
+    }
+
+    function handleIncomingOrder(order) {
+        const n = normalizeOrder(order);
+        if (!n.customerId || !n.partner) {
+            console.log('[order] ignored (missing fields after normalize)', order);
+            return;
+        }
+        const sig = signatureOf(n);
+        const last = lastOrderSig || readStoredSig();
+
+        if (sig !== last && !recent.has(sig) && !firedRecently(sig)) {
+            try { showOrder(n); }
+            finally {
+                lastOrderSig = sig;
+                markFired(sig);
+            }
+        } else {
+            console.log('[order] duplicate ignored', { sig, last, inMem: recent.has(sig), recent10m: firedRecently(sig) });
+        }
+    }
+
+    function pickLatest(list) {
+        if (!Array.isArray(list) || !list.length) return;
+        return list.sort((a, b) => Date.parse(b.timestamp || 0) - Date.parse(a.timestamp || 0))[0];
+    }
+
+    async function pollOnce() {
+        try {
+            const url = CONFIG.poll.url + (CONFIG.poll.url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) { console.warn('[poll] HTTP', res.status); return; }
+
+            const ct = res.headers.get('content-type') || '';
+            let data;
+            if (ct.includes('application/json')) { data = await res.json(); }
+            else { const text = await res.text(); try { data = JSON.parse(text); } catch { console.warn('[poll] non-JSON response'); return; } }
+
+            const order = Array.isArray(data) ? data[0]
+                : (Array.isArray(data.orders) ? pickLatest(data.orders) : (data.latest || data));
+
+            if (isValidOrder(order)) handleIncomingOrder(order);
+        } catch (e) { console.error('[poll] error', e); }
+    }
+    function startPolling() { pollOnce(); setInterval(pollOnce, CONFIG.poll.intervalMs); }
+
+    /* Debug */
+    function setupDebug() {
+        if (!CONFIG.showDebug) return;
+        const bar = document.getElementById('debugBar'); bar.hidden = false;
+        document.getElementById('btnTestOrder').onclick = () => handleIncomingOrder({
+            subject: 'Test', timestamp: new Date().toISOString(),
+            fields: { idName: 'C123456 Demo Customer', partner: 'Demo Partner', isr: 'Alice', csr: 'Bob', dsm: 'Carol' }
+        });
+        document.getElementById('btnTogglePause').onclick = () => paused = !paused;
+    }
+
+    async function loadSlides() {
+        try {
+            const res = await fetch(CONFIG.remote.slidesUrl + '?_t=' + Date.now(), { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : (Array.isArray(data.slides) ? data.slides : []);
+            if (list.length) CONFIG.slides = list;
+            if (data.slideDurationMs) CONFIG.slideDurationMs = +data.slideDurationMs || CONFIG.slideDurationMs;
+        } catch (e) {
+            console.warn('[slides] load failed:', e);
+            // Fallback: point to your Pages-hosted images so local file:// still works
+            CONFIG.slides = CONFIG.slides.length ? CONFIG.slides : [
+                { type: 'image', src: '/slides/EASY.png' },
+                { type: 'image', src: '/slides/NICE.png' },
+                { type: 'image', src: '/slides/TNT.png' },
+            ];
+        }
+    }
+
+    function setupAudioUnlock() {
+        const unlock = () => {
+            ding.play().then(() => {
+                ding.pause(); ding.currentTime = 0;
+                audioReady = true;
+                window.removeEventListener('click', unlock);
+                window.removeEventListener('keydown', unlock);
+                console.log('[audio] unlocked');
+            }).catch(() => { /* wait for user gesture */ });
         };
+        window.addEventListener('click', unlock);
+        window.addEventListener('keydown', unlock);
+    }
 
-        /* =============================
-           Slideshow Logic
-           ============================= */
-        const slideImage = document.getElementById('slideImage');
-        const slideFrame = document.getElementById('slideFrame');
-        let slideIdx = 0, slideTimer = null, paused = false;
-
-        function preloadImages(list) { list.filter(s => s.type === 'image').forEach(s => { const i = new Image(); i.src = s.src; }); }
-        function setActiveView(kind) { slideImage.hidden = (kind !== 'image'); slideFrame.hidden = (kind === 'image'); }
-        function showSlide(i) {
-            if (!CONFIG.slides || !CONFIG.slides.length) return;
-            const s = CONFIG.slides[i % CONFIG.slides.length];
-            if (s.type === 'image') {
-                const src = s.src; slideImage.classList.add('fade-out');
-                setTimeout(() => {
-                    slideImage.onload = () => slideImage.classList.remove('fade-out');
-                    slideImage.onerror = () => { console.warn('[slideshow] image failed', src); slideImage.classList.remove('fade-out'); };
-                    setActiveView('image'); slideImage.src = src;
-                    setTimeout(() => slideImage.classList.remove('fade-out'), CONFIG.fadeMs + 1000);
-                }, CONFIG.fadeMs);
-            } else if (s.type === 'url') {
-                const src = s.src + (s.src.includes('?') ? '&' : '?') + '_t=' + Date.now();
-                setActiveView('url'); slideFrame.src = src;
+    /* Boot */
+    (function init() {
+        // seed lastOrderSig from storage if present (so refreshes don't immediately refire)
+        try { lastOrderSig = localStorage.getItem('lastOrderSig') || null; } catch {}
+        setupAudioUnlock();
+        loadSlides().then(() => {
+            preloadImages(CONFIG.slides);
+            startSlideshow();
+            setupDebug();
+            if (CONFIG.websocket.enabled && CONFIG.websocket.url) {
+                // startWebSocket();
+            } else if (CONFIG.poll.enabled && CONFIG.poll.url) {
+                startPolling();
             }
-        }
-        function startSlideshow() {
-            if (!CONFIG.slides || !CONFIG.slides.length) return;
-            showSlide(slideIdx); clearInterval(slideTimer);
-            slideTimer = setInterval(() => { if (!paused) { slideIdx = (slideIdx + 1) % CONFIG.slides.length; showSlide(slideIdx); } }, CONFIG.slideDurationMs);
-        }
-        function pauseSlideshow() { paused = true; } function resumeSlideshow() { paused = false; }
-
-        /* =============================
-           Order Overlay Logic
-           ============================= */
-        const overlay = document.getElementById('orderOverlay');
-        const closeBtn = document.getElementById('closeOrder');
-        const ding = document.getElementById('ding');
-        const fields = {
-            custId: document.getElementById('customerId'),
-            partner: document.getElementById('partnerName'),
-            time: document.getElementById('orderTime'),
-            isr: document.getElementById('isrName'),
-            csr: document.getElementById('csrName'),
-            dsm: document.getElementById('dsmName'),
-        };
-        let audioReady = false;
-        let hideTimer = null;
-        let lastOrderKey = null;
-        let lastETag = null;
-
-        function dget(o, p) { return String(p).split('.').reduce((a, k) => (a && a[k] != null ? a[k] : undefined), o); }
-        function pickDeep(o, ps) { for (const p of ps) { const v = dget(o, p); if (v != null && v !== '') return v; } }
-
-        function normalizeOrder(o) {
-            if (!o || typeof o !== 'object') return {};
-            let id = pickDeep(o, ['customerId', 'customerID', 'fields.customerId']);
-            let partner = pickDeep(o, ['partner', 'fields.partner']);
-            let name = pickDeep(o, ['customerName', 'fields.customerName']);
-            const text = [o.subject, o.body, dget(o, 'fields.text')].filter(Boolean).join('  ');
-
-            const idNameRaw = pickDeep(o, ['idName', 'fields.idName']);
-            if (idNameRaw) {
-                const mm = String(idNameRaw).match(/\b(C?\d{6,})\s+(.+)/);
-                if (mm) { if (!id) id = mm[1]; if (!name) name = mm[2].trim(); }
-            }
-
-            if (text && !id) { const m = text.match(/\bC?\d{6,}\b/); if (m) id = m[0]; }
-            if (text && !partner) { const m = text.match(/from\s+(.+?)(?:[.!]\s*|$)/i); if (m) partner = m[1].trim(); }
-            if (text && id && !name) { const re = new RegExp(id + '\\s+(.+?)\\s+(?:from|by)\\b', 'i'); const m = re.exec(text); if (m) name = m[1].trim(); }
-
-            const ts = o.timestamp || o.receivedAt || new Date().toISOString();
-
-            const clean = v => (v == null ? null : String(v).replace(/^\s*-+\s*/, '').trim() || null);
-            const isr = clean(dget(o, 'fields.isr') ?? o.isr);
-            const csr = clean(dget(o, 'fields.csr') ?? o.csr);
-            const dsm = clean(dget(o, 'fields.dsm') ?? o.dsm);
-
-            const idName = (id && name) ? `${id} ${name}` : (idNameRaw || null);
-            return { customerId: id, customerName: name, idName, partner, timestamp: ts, isr, csr, dsm };
-        }
-
-        function renderOrder(o) {
-            const n = normalizeOrder(o);
-            fields.custId.textContent = n.idName || (n.customerName ? `${n.customerId} ${n.customerName}` : n.customerId);
-            fields.partner.textContent = n.partner || '—';
-            fields.isr.textContent = n.isr || '—';
-            fields.csr.textContent = n.csr || '—';
-            fields.dsm.textContent = n.dsm || '—';
-            const when = n.timestamp ? new Date(n.timestamp) : new Date();
-            fields.time.textContent = `Received ${when.toLocaleString()}`;
-        }
-
-        function simpleConfetti() {
-            const root = document.getElementById('confetti'); root.innerHTML = '';
-            const colors = ['#8ea50b', '#60a5fa', '#f472b6', '#facc15', '#f97316', '#22d3ee'];
-            for (let i = 0; i < 90; i++) {
-                const b = document.createElement('i');
-                b.style.left = Math.random() * 100 + 'vw';
-                b.style.animationDelay = (Math.random() * 0.6) + 's';
-                b.style.animationDuration = (1.4 + Math.random() * 1.2) + 's';
-                b.style.background = colors[Math.floor(Math.random() * colors.length)];
-                root.appendChild(b);
-            }
-        }
-
-        function showOrder(o) {
-            pauseSlideshow();
-            renderOrder(o);
-            overlay.hidden = false;
-            clearTimeout(hideTimer);
-            hideTimer = setTimeout(hideOrder, CONFIG.orderDisplayMs);
-            simpleConfetti();
-            try { if (audioReady) { ding.currentTime = 0; ding.play(); } } catch { }
-        }
-        function hideOrder() { overlay.hidden = true; resumeSlideshow(); }
-        closeBtn.addEventListener('click', hideOrder);
-
-        function isValidOrder(o) { const n = normalizeOrder(o); return !!(n.customerId && n.partner); }
-
-        function handleIncomingOrder(order) {
-            const n = normalizeOrder(order);
-            if (!n.customerId || !n.partner) { console.log('[order] ignored (missing fields after normalize)', order); return; }
-            const subj = (order.subject || '').trim();
-            const key = `${String(n.customerId)}|${n.timestamp || ''}|${subj}`;
-            if (key && lastOrderKey === key) { console.log('[order] duplicate ignored by key', key); return; }
-            lastOrderKey = key;
-            showOrder(n);
-        }
-
-        function pickLatest(list) {
-            if (!Array.isArray(list) || !list.length) return;
-            return list.sort((a, b) => Date.parse(b.timestamp || 0) - Date.parse(a.timestamp || 0))[0];
-        }
-
-        async function pollOnce() {
-            try {
-                const url = CONFIG.poll.url + (CONFIG.poll.url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-                const res = await fetch(url, { cache: 'no-store' });
-                if (!res.ok) { console.warn('[poll] HTTP', res.status); return; }
-
-                const etag = res.headers.get('etag') || res.headers.get('x-ms-file-etag') || res.headers.get('last-modified') || null;
-
-                const ct = res.headers.get('content-type') || '';
-                let data;
-                if (ct.includes('application/json')) { data = await res.json(); }
-                else { const text = await res.text(); try { data = JSON.parse(text); } catch { console.warn('[poll] non-JSON response'); return; } }
-
-                const order = Array.isArray(data) ? data[0]
-                    : (Array.isArray(data.orders) ? pickLatest(data.orders) : (data.latest || data));
-
-                if (isValidOrder(order)) {
-                    if (etag && etag !== lastETag) { lastETag = etag; lastOrderKey = null; }
-                    handleIncomingOrder(order);
-                }
-            } catch (e) { console.error('[poll] error', e); }
-        }
-        function startPolling() { pollOnce(); setInterval(pollOnce, CONFIG.poll.intervalMs); }
-
-        /* Debug */
-        function setupDebug() {
-            if (!CONFIG.showDebug) return;
-            const bar = document.getElementById('debugBar'); bar.hidden = false;
-            document.getElementById('btnTestOrder').onclick = () => handleIncomingOrder({
-                subject: 'Test', timestamp: new Date().toISOString(),
-                fields: { idName: 'C123456 Demo Customer', partner: 'Demo Partner', isr: 'Alice', csr: 'Bob', dsm: 'Carol' }
-            });
-            document.getElementById('btnTogglePause').onclick = () => paused = !paused;
-        }
-
-        async function loadSlides() {
-            try {
-                const res = await fetch(CONFIG.remote.slidesUrl + '?_t=' + Date.now(), { cache: 'no-store' });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (Array.isArray(data.slides) ? data.slides : []);
-                if (list.length) CONFIG.slides = list;
-                if (data.slideDurationMs) CONFIG.slideDurationMs = +data.slideDurationMs || CONFIG.slideDurationMs;
-            } catch (e) {
-                console.warn('[slides] load failed:', e);
-                // Fallback: point to your Pages-hosted images so local file:// still works
-                CONFIG.slides = CONFIG.slides.length ? CONFIG.slides : [
-                    { type: 'image', src: '/slides/EASY.png' },
-                    { type: 'image', src: '/slides/NICE.png' },
-                    { type: 'image', src: '/slides/TNT.png' },
-                ];
-            }
-        }
-
-        function setupAudioUnlock() {
-            const unlock = () => {
-                ding.play().then(() => {
-                    ding.pause(); ding.currentTime = 0;
-                    audioReady = true;
-                    window.removeEventListener('click', unlock);
-                    window.removeEventListener('keydown', unlock);
-                    console.log('[audio] unlocked');
-                }).catch(() => { /* wait for user gesture */ });
-            };
-            window.addEventListener('click', unlock);
-            window.addEventListener('keydown', unlock);
-        }
-
-        /* Boot */
-        (function init() {
-            setupAudioUnlock();
-            loadSlides().then(() => {
-                preloadImages(CONFIG.slides);
-                startSlideshow();
-                setupDebug();
-                if (CONFIG.websocket.enabled && CONFIG.websocket.url) {
-                    // startWebSocket();
-                } else if (CONFIG.poll.enabled && CONFIG.poll.url) {
-                    startPolling();
-                }
-            });
-        })();
-    </script>
+        });
+    })();
+</script>
 </body>
 </html>
+
 
 
 
