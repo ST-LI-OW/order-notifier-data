@@ -1,7 +1,6 @@
 {
   "slides": [
     { "type": "url", "src": "/contivio.html" },
-    { "type": "image", "src": "/slides/April2026.png" },
     { "type": "image", "src": "/slides/EASY.png" },
     { "type": "image", "src": "/slides/NICE.png" },
     { "type": "image", "src": "/slides/TNT.png" },
@@ -34,7 +33,6 @@
     { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=2812&deploy=16&compid=4482541&ns-at=AAEJ7tMQuMf96WCCvuBYPb_XztjNtdOC-CxqiciONvghzLOvH8Q", "label": "ISR by Team - Ricardo" },
     { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=2812&deploy=4&compid=4482541&ns-at=AAEJ7tMQ8jxFkGmocoxXxGL1gY07vYg_gfNgzHEiCIf45XKZomw", "label": "ISR by Team - Matt" },
     { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=2812&deploy=7&compid=4482541&ns-at=AAEJ7tMQmFgiM07XMGYdJZKNNGSQYlU6zbaf7h20ISMNh7okKFg", "label": "ISR by Team - Kory" },
-    { "type": "image", "src": "/slides/April2026.png" },
     { "type": "image", "src": "/slides/ThirdParty.PNG" },
     { "type": "image", "src": "/slides/PositiveInterventionTV.png" },
     { "type": "image", "src": "/slides/PhysicalQuestions.png" },
