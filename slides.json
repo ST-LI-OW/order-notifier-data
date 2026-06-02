@@ -1,6 +1,9 @@
 {
   "slides": [
     { "type": "url", "src": "/contivio.html" },
+    { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=4723&deploy=3&compid=4482541&ns-at=AAEJ7tMQTTLbT0IO47wHKGx5xGak2hQsPheDNwC9lSkgchAs9YM", "label": "Appointment Targets - Tomorrow" },
+    { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=4723&deploy=1&compid=4482541&ns-at=AAEJ7tMQsgR80H_WQyTUTtMOArAs7ag55zORGwu4M471JZWGThE", "label": "Appointment Targets - This Week" },
+    { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=4723&deploy=2&compid=4482541&ns-at=AAEJ7tMQuVTCgBR3MI5UK8wru6MA1oh1uhCw4kL_TZvYRRAdIlw", "label": "Appointment Targets - Next Week" },
     { "type": "image", "src": "/slides/EASY.png" },
     { "type": "image", "src": "/slides/NICE.png" },
     { "type": "image", "src": "/slides/TNT.png" },
@@ -25,6 +28,9 @@
     { "type": "image", "src": "/slides/SpeedtoLead.png", "label": "" },
     { "type": "image", "src": "/slides/convertfact.png", "label": "" },
     { "type": "image", "src": "/slides/CostOfUse.png" },
+    { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=4723&deploy=3&compid=4482541&ns-at=AAEJ7tMQTTLbT0IO47wHKGx5xGak2hQsPheDNwC9lSkgchAs9YM", "label": "Appointment Targets - Tomorrow" },
+    { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=4723&deploy=1&compid=4482541&ns-at=AAEJ7tMQsgR80H_WQyTUTtMOArAs7ag55zORGwu4M471JZWGThE", "label": "Appointment Targets - This Week" },
+    { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=4723&deploy=2&compid=4482541&ns-at=AAEJ7tMQuVTCgBR3MI5UK8wru6MA1oh1uhCw4kL_TZvYRRAdIlw", "label": "Appointment Targets - Next Week" },
     { "type": "image", "src": "/slides/EmployeeVision.png" },
     { "type": "image", "src": "/slides/GearWheel.png" },
     { "type": "image", "src": "/slides/RigorousTesting.PNG" },
