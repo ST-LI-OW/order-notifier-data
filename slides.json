@@ -24,6 +24,7 @@
     { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=2812&deploy=9&compid=4482541&ns-at=AAEJ7tMQkzBBKIzvOpbMfbOkznIaZ7jKywnlhngTvLlY8hq8pOw", "label": "Actual Lead by Team Kory" },
     { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=2812&deploy=6&compid=4482541&ns-at=AAEJ7tMQaCCdm313f-XcxaFuvotMW22o17FOKHzJsgfwubK0ScU", "label": "Actual Lead by Team Matt" },
     { "type": "url", "src": "https://4482541.extforms.netsuite.com/app/site/hosting/scriptlet.nl?script=2812&deploy=15&compid=4482541&ns-at=AAEJ7tMQiL-fN4zda5ORCA7HIN_M-k-T86CcCG8cGBVsRNFDGcU", "label": "Actual Lead by Team Ricardo" },
+    { "type": "image", "src": "/slides/2026_TL_Key.png" },
     { "type": "image", "src": "/slides/PriceObjections.PNG" },
     { "type": "image", "src": "/slides/SpeedtoLead.png", "label": "" },
     { "type": "image", "src": "/slides/convertfact.png", "label": "" },
